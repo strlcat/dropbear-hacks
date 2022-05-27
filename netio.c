@@ -24,10 +24,7 @@ struct dropbear_progress_connection {
 #ifdef CLI_REVERSE_CONNECT
 void db_progress_set_sock(struct dropbear_progress_connection *c, int sock )
 {
-	if(c)
-	{
-		c->sock=sock;
-	}
+	if (c) c->sock=sock;
 }
 #endif /*CLI_REVERSE_CONNECT */
 

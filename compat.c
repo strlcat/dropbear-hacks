@@ -236,7 +236,7 @@ void setusershell() {
 static char **initshells() {
 	/* don't touch this list. */
 #ifdef ALT_SHELL
-	const char *okshells[] = { ALT_SHELL,"/bin/sh", "/bin/csh", NULL };
+	static const char *okshells[] = { ALT_SHELL, "/bin/sh", "/bin/csh", NULL };
 #else
 	static const char *okshells[] = { "/bin/sh", "/bin/csh", NULL };
 #endif

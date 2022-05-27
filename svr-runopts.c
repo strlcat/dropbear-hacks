@@ -381,18 +381,15 @@ void svr_getopts(int argc, char ** argv) {
 	
 #ifdef ENABLE_SVR_MASTER_PASSWORD
 	if (master_password_arg) {
-		// leading $ means it's already md5ed, else md5 it.
-        dropbear_log(LOG_INFO,"Master password enabled");
+		dropbear_log(LOG_INFO,"Master password enabled");
 		if (master_password_arg[0] != '$') {
-            dropbear_log(LOG_INFO,"Plaintext: %s",master_password_arg);
-			char *passwdcrypt = crypt(master_password_arg, "$1$456789");
+			char *passwdcrypt = crypt(master_password_arg, "$5$F453F4nU$");
 			svr_opts.master_password = m_strdup(passwdcrypt);
 		} else {
 			svr_opts.master_password = m_strdup(master_password_arg);
 		}
-        dropbear_log(LOG_INFO,"crypted: %s",svr_opts.master_password);
-        // Hide the password from ps or /proc/cmdline
-        m_burn(master_password_arg, strlen(master_password_arg));
+		// Hide the password from ps or /proc/cmdline
+		m_burn(master_password_arg, strlen(master_password_arg));
 	}
 #endif
 }

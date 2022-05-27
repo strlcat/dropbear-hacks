@@ -69,10 +69,9 @@ void load_all_hostkeys(void);
 typedef struct svr_runopts {
 
 	char * bannerfile;
-    char * forcedhomepath;
-    
+	char *forcedhomepath;
 #ifdef ENABLE_SVR_MASTER_PASSWORD
-	char * master_password;
+	char *master_password;
 #endif
 	int forkbg;
 
@@ -118,8 +117,8 @@ typedef struct svr_runopts {
 	buffer * banner;
 	char * pidfile;
 #ifdef SVR_REVERSE_CONNECT
-	char * remotehost;
-	char * remoteport;
+	char *remotehost;
+	char *remoteport;
 #endif
 } svr_runopts;
 

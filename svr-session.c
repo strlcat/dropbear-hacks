@@ -131,9 +131,6 @@ void svr_session(int sock, int childpipe) {
 	
 	kexfirstinitialise(); /* initialise the kex state */
 
-	/* start off with key exchange */
-	send_msg_kexinit();
-
 	/* Run the main for loop. NULL is for the dispatcher - only the client
 	 * code makes use of it */
 	session_loop(NULL);

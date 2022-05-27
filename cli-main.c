@@ -99,10 +99,7 @@ int main(int argc, char ** argv) {
 #ifdef CLI_REVERSE_CONNECT
 	TRACE(("REVERSE_CONNECT defined so doing accept."));
 	dbsock = cli_accept_remote(cli_opts.local_port,&error);
-	if(dbsock < 0)
-	{
-		dropbear_exit("%s",error);
-	}
+	if (dbsock < 0) dropbear_exit("%s",error);
 	db_progress_set_sock(progress,dbsock);
 #endif /* CLI_REVERSE_CONNECT */
 
@@ -203,7 +200,6 @@ static void kill_proxy_sighandler(int UNUSED(signo)) {
 static int
 cli_accept_remote(const char *local_port,char **error)
 {
-	TRACE(("cli_accept_remote"));
 	int errornum;
 	int server_sockfd;
 	int connection_sockfd;
@@ -212,49 +208,40 @@ cli_accept_remote(const char *local_port,char **error)
 	struct addrinfo *srvinfo;
 	struct addrinfo *p;
 	struct sockaddr_storage their_addr;
-	int yes=1;
+	int yes = 1;
 	char s[INET6_ADDRSTRLEN];
 	int rv;
 
-	if(NULL == local_port)
-	{
-		if(error != NULL)
-		{
-			*error = strdup("Invalid parameter: local_port string was NULL.\n");
-		}
+	TRACE(("cli_accept_remote"));
+
+	if (!local_port) {
+		if (error) *error = strdup("Invalid parameter: local_port string was NULL.\n");
 		return -1;
 	}
-	
 
-	memset(&hints,0,sizeof(hints));
+	memset(&hints, 0, sizeof(hints));
 
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; //use my ip
 	
-	if((rv = getaddrinfo(NULL,local_port,&hints,&srvinfo)) != 0)
-	{
+	if ((rv = getaddrinfo(NULL, local_port, &hints, &srvinfo)) != 0) {
 		TRACE(("getaddrinfo: %s\n",gai_strerror(rv)));
 		return -1;
 	}
 
-	for(p=srvinfo; p != NULL; p=p->ai_next)
-	{
-		if((server_sockfd = socket(p->ai_family,p->ai_socktype,
-						p->ai_protocol)) == -1)
-		{
+	for (p = srvinfo; p != NULL; p = p->ai_next) {
+		if ((server_sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
 			TRACE(("server: socket %s",strerror(errno)));
 			continue;
 		}
-		if(setsockopt(server_sockfd, SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1)
-		{
+		if (setsockopt(server_sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
 			TRACE(("setsockopt: %s",strerror(errno)));
-			*error=strdup(strerror(errno));
+			*error = strdup(strerror(errno));
 			return -1;
 		}
 		TRACE(("bind()"));
-		if(bind(server_sockfd,p->ai_addr, p->ai_addrlen) == -1)
-		{
+		if (bind(server_sockfd, p->ai_addr, p->ai_addrlen) == -1) {
 			TRACE(("server: bind %s",strerror(errno)));
 			close(server_sockfd);
 			continue;
@@ -262,40 +249,33 @@ cli_accept_remote(const char *local_port,char **error)
 		break;
 	}
 
-	if(NULL == p)
-	{
+	if (!p) {
 		TRACE(("server: failed to bind."));
-		*error=strdup("Failed to bind.");
+		*error = strdup("Failed to bind.");
 		return -1;
 	}
 
 	freeaddrinfo(srvinfo);
 	TRACE(("listen()"));
-	if(listen(server_sockfd,1) == -1)
-	{
-		TRACE(("listen=: %s",strerror(errno)));
-		*error=strdup(strerror(errno));
+	if (listen(server_sockfd, 128) == -1) {
+		TRACE(("listen=: %s", strerror(errno)));
+		*error = strdup(strerror(errno));
 		return -1;
 	}
 
-	while(1)
-	{
-		sin_size=sizeof(their_addr);
+	while (1) {
+		sin_size = sizeof(their_addr);
 		TRACE(("accept()"));
-		connection_sockfd = accept(server_sockfd,(struct sockaddr *)&their_addr,&sin_size);
-		if(connection_sockfd == -1)
-		{
-			TRACE(("accept: %s",strerror(errno)));
+		connection_sockfd = accept(server_sockfd, (struct sockaddr *)&their_addr, &sin_size);
+		if (connection_sockfd == -1) {
+			TRACE(("accept: %s", strerror(errno)));
 			continue;
 		}
-		inet_ntop(their_addr.ss_family,
-				IN_ADDR((struct sockaddr *)&their_addr),
-				s,sizeof(s));
-		TRACE(("Connection from %s",s));
+		inet_ntop(their_addr.ss_family, IN_ADDR((struct sockaddr *)&their_addr), s, sizeof(s));
+		TRACE(("Connection from %s", s));
 		
 		close(server_sockfd); //done with listener
 		return connection_sockfd;
 	}
-
 }
 #endif /* CLI_REVERSE_CONNECT */
