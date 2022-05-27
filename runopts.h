@@ -107,12 +107,17 @@ typedef struct svr_runopts {
 	int nolocaltcp;
 #endif
 
+#ifdef DROPBEAR_DSS
+	char *dss_keyfile;
+#endif
+#ifdef DROPBEAR_RSA
+	char *rsa_keyfile;
+#endif
+#ifdef DROPBEAR_ECDSA
+	char *ecdsa_keyfile;
+#endif
+
 	sign_key *hostkey;
-
-	int delay_hostkey;
-
-	char *hostkey_files[MAX_HOSTKEYS];
-	int num_hostkey_files;
 
 	buffer * banner;
 } svr_runopts;

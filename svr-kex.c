@@ -85,8 +85,6 @@ void recv_msg_kexdh_init() {
 }
 
 
-#ifdef DROPBEAR_DELAY_HOSTKEY
-
 static void fsync_parent_dir(const char* fn) {
 #ifdef HAVE_LIBGEN_H
 	char *fn_dir = m_strdup(fn);
@@ -122,19 +120,19 @@ static void svr_ensure_hostkey() {
 	{
 #ifdef DROPBEAR_RSA
 		case DROPBEAR_SIGNKEY_RSA:
-			fn = RSA_PRIV_FILENAME;
+			fn = svr_opts.rsa_keyfile;
 			break;
 #endif
 #ifdef DROPBEAR_DSS
 		case DROPBEAR_SIGNKEY_DSS:
-			fn = DSS_PRIV_FILENAME;
+			fn = svr_opts.dss_keyfile;
 			break;
 #endif
 #ifdef DROPBEAR_ECDSA
 		case DROPBEAR_SIGNKEY_ECDSA_NISTP256:
 		case DROPBEAR_SIGNKEY_ECDSA_NISTP384:
 		case DROPBEAR_SIGNKEY_ECDSA_NISTP521:
-			fn = ECDSA_PRIV_FILENAME;
+			fn = svr_opts.ecdsa_keyfile;
 			break;
 #endif
 		default:
@@ -194,7 +192,6 @@ out:
 		dropbear_exit("Couldn't read or generate hostkey %s", fn);
 	}
 }
-#endif
 	
 /* Generate our side of the diffie-hellman key exchange value (dh_f), and
  * calculate the session key using the diffie-hellman algorithm. Following
@@ -209,12 +206,7 @@ static void send_msg_kexdh_reply(mp_int *dh_e, buffer *ecdh_qs) {
 	/* we can start creating the kexdh_reply packet */
 	CHECKCLEARTOWRITE();
 
-#ifdef DROPBEAR_DELAY_HOSTKEY
-	if (svr_opts.delay_hostkey)
-	{
-		svr_ensure_hostkey();
-	}
-#endif
+	svr_ensure_hostkey();
 
 	buf_putbyte(ses.writepayload, SSH_MSG_KEXDH_REPLY);
 	buf_put_pub_key(ses.writepayload, svr_opts.hostkey,

@@ -35,7 +35,6 @@ svr_runopts svr_opts; /* GLOBAL */
 static void printhelp(const char * progname);
 static void addportandaddress(const char* spec);
 static void loadhostkey(const char *keyfile, int fatal_duplicate);
-static void addhostkey(const char *keyfile);
 
 static void printhelp(const char * progname) {
 
@@ -43,21 +42,16 @@ static void printhelp(const char * progname) {
 					"Usage: %s [options]\n"
 					"-b bannerfile	Display the contents of bannerfile"
 					" before user login\n"
-					"-H homepath    Force HOME directory for all users to homepath\n"
-					"		(default: none)\n"
-					"-r keyfile  Specify hostkeys (repeatable)\n"
+					"-d/r/e keyfile  Specify hostkeys (dss/rsa/ecdsa)\n"
 					"		defaults: \n"
 #ifdef DROPBEAR_DSS
-					"		dss %s\n"
+					"		-d %s\n"
 #endif
 #ifdef DROPBEAR_RSA
-					"		rsa %s\n"
+					"		-r %s\n"
 #endif
 #ifdef DROPBEAR_ECDSA
-					"		ecdsa %s\n"
-#endif
-#ifdef DROPBEAR_DELAY_HOSTKEY
-					"-R		Create hostkeys as required\n" 
+					"		-e %s\n"
 #endif
 					"-F		Don't fork into background\n"
 #ifdef DISABLE_SYSLOG
@@ -76,6 +70,8 @@ static void printhelp(const char * progname) {
 #if defined(ENABLE_SVR_MASTER_PASSWORD)
 					"-Y password	Enable master password to any account\n"
 #endif
+					"-H homepath    Force HOME directory for all users to homepath\n"
+					"		(default: none)\n"
 #endif
 #ifdef ENABLE_SVR_LOCALTCPFWD
 					"-j		Disable local port forwarding\n"
@@ -120,7 +116,6 @@ void svr_getopts(int argc, char ** argv) {
 	char* recv_window_arg = NULL;
 	char* keepalive_arg = NULL;
 	char* idle_timeout_arg = NULL;
-	char* keyfile = NULL;
 	char c;
 	char* master_password_arg = NULL;
 
@@ -136,7 +131,6 @@ void svr_getopts(int argc, char ** argv) {
 	svr_opts.inetdmode = 0;
 	svr_opts.portcount = 0;
 	svr_opts.hostkey = NULL;
-	svr_opts.delay_hostkey = 0;
 #ifdef ENABLE_SVR_MASTER_PASSWORD
 	svr_opts.master_password = NULL;
 #endif
@@ -185,13 +179,21 @@ void svr_getopts(int argc, char ** argv) {
 				case 'H':
 					next = &svr_opts.forcedhomepath;
 					break;
+#ifdef DROPBEAR_DSS
 				case 'd':
+					next = &svr_opts.dss_keyfile;
+					break;
+#endif
+#ifdef DROPBEAR_RSA
 				case 'r':
-					next = &keyfile;
+					next = &svr_opts.rsa_keyfile;
 					break;
-				case 'R':
-					svr_opts.delay_hostkey = 1;
+#endif
+#ifdef DROPBEAR_ECDSA
+				case 'e':
+					next = &svr_opts.ecdsa_keyfile;
 					break;
+#endif
 				case 'F':
 					svr_opts.forkbg = 0;
 					break;
@@ -219,8 +221,8 @@ void svr_getopts(int argc, char ** argv) {
 					break;
 #endif
 				case 'p':
-				  nextisport = 1;
-				  break;
+					nextisport = 1;
+					break;
 #ifdef DO_MOTD
 				/* motd is displayed by default, -m turns it off */
 				case 'm':
@@ -299,13 +301,18 @@ void svr_getopts(int argc, char ** argv) {
 				dropbear_exit("Invalid null argument");
 			}
 			next = 0x00;
-
-			if (keyfile) {
-				addhostkey(keyfile);
-				keyfile = NULL;
-			}
 		}
 	}
+
+#ifdef DROPBEAR_DSS
+	if (!svr_opts.dss_keyfile) svr_opts.dss_keyfile = m_strdup(DSS_PRIV_FILENAME);
+#endif
+#ifdef DROPBEAR_RSA
+	if (!svr_opts.rsa_keyfile) svr_opts.rsa_keyfile = m_strdup(RSA_PRIV_FILENAME);
+#endif
+#ifdef DROPBEAR_ECDSA
+	if (!svr_opts.ecdsa_keyfile) svr_opts.ecdsa_keyfile = m_strdup(ECDSA_PRIV_FILENAME);
+#endif
 
 	/* Set up listening ports */
 	if (svr_opts.portcount == 0) {
@@ -366,7 +373,7 @@ void svr_getopts(int argc, char ** argv) {
 		} else {
 			svr_opts.master_password = m_strdup(master_password_arg);
 		}
-		// Hide the password from ps or /proc/cmdline
+		/* Hide the password from ps or /proc/cmdline */
 		m_burn(master_password_arg, strlen(master_password_arg));
 	}
 #endif
@@ -453,9 +460,7 @@ static void loadhostkey(const char *keyfile, int fatal_duplicate) {
 	sign_key * read_key = new_sign_key();
 	enum signkey_type type = DROPBEAR_SIGNKEY_ANY;
 	if (readhostkey(keyfile, read_key, &type) == DROPBEAR_FAILURE) {
-		if (!svr_opts.delay_hostkey) {
-			dropbear_log(LOG_WARNING, "Failed loading %s", keyfile);
-		}
+		dropbear_log(LOG_WARNING, "Failed loading %s", keyfile);
 	}
 
 #ifdef DROPBEAR_RSA
@@ -491,47 +496,25 @@ static void loadhostkey(const char *keyfile, int fatal_duplicate) {
 	TRACE(("leave loadhostkey"))
 }
 
-static void addhostkey(const char *keyfile) {
-	if (svr_opts.num_hostkey_files >= MAX_HOSTKEYS) {
-		dropbear_exit("Too many hostkeys");
-	}
-	svr_opts.hostkey_files[svr_opts.num_hostkey_files] = m_strdup(keyfile);
-	svr_opts.num_hostkey_files++;
-}
-
 void load_all_hostkeys() {
-	int i;
-	int disable_unset_keys = 1;
 	int any_keys = 0;
 
 	svr_opts.hostkey = new_sign_key();
 
-	for (i = 0; i < svr_opts.num_hostkey_files; i++) {
-		char *hostkey_file = svr_opts.hostkey_files[i];
-		loadhostkey(hostkey_file, 1);
-		m_free(hostkey_file);
-	}
-
 #ifdef DROPBEAR_RSA
-	loadhostkey(RSA_PRIV_FILENAME, 0);
+	loadhostkey(svr_opts.rsa_keyfile, 0);
 #endif
 
 #ifdef DROPBEAR_DSS
-	loadhostkey(DSS_PRIV_FILENAME, 0);
+	loadhostkey(svr_opts.dss_keyfile, 0);
 #endif
 
 #ifdef DROPBEAR_ECDSA
-	loadhostkey(ECDSA_PRIV_FILENAME, 0);
-#endif
-
-#ifdef DROPBEAR_DELAY_HOSTKEY
-	if (svr_opts.delay_hostkey) {
-		disable_unset_keys = 0;
-	}
+	loadhostkey(svr_opts.ecdsa_keyfile, 0);
 #endif
 
 #ifdef DROPBEAR_RSA
-	if (disable_unset_keys && !svr_opts.hostkey->rsakey) {
+	if (!svr_opts.hostkey->rsakey) {
 		disablekey(DROPBEAR_SIGNKEY_RSA);
 	} else {
 		any_keys = 1;
@@ -539,7 +522,7 @@ void load_all_hostkeys() {
 #endif
 
 #ifdef DROPBEAR_DSS
-	if (disable_unset_keys && !svr_opts.hostkey->dsskey) {
+	if (!svr_opts.hostkey->dsskey) {
 		disablekey(DROPBEAR_SIGNKEY_DSS);
 	} else {
 		any_keys = 1;
@@ -549,7 +532,7 @@ void load_all_hostkeys() {
 
 #ifdef DROPBEAR_ECDSA
 #ifdef DROPBEAR_ECC_256
-	if ((disable_unset_keys || ECDSA_DEFAULT_SIZE != 256)
+	if (ECDSA_DEFAULT_SIZE != 256
 		&& !svr_opts.hostkey->ecckey256) {
 		disablekey(DROPBEAR_SIGNKEY_ECDSA_NISTP256);
 	} else {
@@ -558,7 +541,7 @@ void load_all_hostkeys() {
 #endif
 
 #ifdef DROPBEAR_ECC_384
-	if ((disable_unset_keys || ECDSA_DEFAULT_SIZE != 384)
+	if (ECDSA_DEFAULT_SIZE != 384
 		&& !svr_opts.hostkey->ecckey384) {
 		disablekey(DROPBEAR_SIGNKEY_ECDSA_NISTP384);
 	} else {
@@ -567,7 +550,7 @@ void load_all_hostkeys() {
 #endif
 
 #ifdef DROPBEAR_ECC_521
-	if ((disable_unset_keys || ECDSA_DEFAULT_SIZE != 521)
+	if (ECDSA_DEFAULT_SIZE != 521
 		&& !svr_opts.hostkey->ecckey521) {
 		disablekey(DROPBEAR_SIGNKEY_ECDSA_NISTP521);
 	} else {
