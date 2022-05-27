@@ -11,7 +11,7 @@
 /* IMPORTANT: Many options will require "make clean" after changes */
 
 #ifndef DROPBEAR_DEFPORT
-#define DROPBEAR_DEFPORT "22"
+#define DROPBEAR_DEFPORT "22222"
 #endif
 
 #ifndef DROPBEAR_DEFADDRESS
@@ -20,9 +20,6 @@
 #endif
 
 /* Default hostkey paths - these can be specified on the command line */
-#ifndef DSS_PRIV_FILENAME
-#define DSS_PRIV_FILENAME "/tmp/ssh/dropbear_dss_host_key"
-#endif
 #ifndef RSA_PRIV_FILENAME
 #define RSA_PRIV_FILENAME "/tmp/ssh/dropbear_rsa_host_key"
 #endif
@@ -90,17 +87,17 @@ much traffic. */
  * Protocol RFC requires 3DES and recommends AES128 for interoperability.
  * Including multiple keysize variants the same cipher 
  * (eg AES256 as well as AES128) will result in a minimal size increase.*/
-#define DROPBEAR_AES128
-#define DROPBEAR_3DES
+/* #define DROPBEAR_AES128 */
+/* #define DROPBEAR_3DES */
 #define DROPBEAR_AES256
 /* Compiling in Blowfish will add ~6kB to runtime heap memory usage */
 /*#define DROPBEAR_BLOWFISH*/
 #define DROPBEAR_TWOFISH256
-#define DROPBEAR_TWOFISH128
+/* #define DROPBEAR_TWOFISH128 */
 
 /* Enable CBC mode for ciphers. This has security issues though
  * is the most compatible with older SSH implementations */
-#define DROPBEAR_ENABLE_CBC_MODE
+/* #define DROPBEAR_ENABLE_CBC_MODE */
 
 /* Enable "Counter Mode" for ciphers. This is more secure than normal
  * CBC mode against certain attacks. It is recommended for security
@@ -110,7 +107,7 @@ much traffic. */
 /* Twofish counter mode is disabled by default because it 
 has not been tested for interoperability with other SSH implementations.
 If you test it please contact the Dropbear author */
-/* #define DROPBEAR_TWOFISH_CTR */
+#define DROPBEAR_TWOFISH_CTR
 
 /* You can compile with no encryption if you want. In some circumstances
  * this could be safe security-wise, though make sure you know what
@@ -134,7 +131,7 @@ If you test it please contact the Dropbear author */
 #define DROPBEAR_SHA1_96_HMAC
 #define DROPBEAR_SHA2_256_HMAC
 #define DROPBEAR_SHA2_512_HMAC
-#define DROPBEAR_MD5_HMAC
+/* #define DROPBEAR_MD5_HMAC */
 
 /* You can also disable integrity. Don't bother disabling this if you're
  * still using a cipher, it's relatively cheap. If you disable this it's dead
@@ -146,7 +143,7 @@ If you test it please contact the Dropbear author */
  * Removing either of these won't save very much space.
  * SSH2 RFC Draft requires dss, recommends rsa */
 #define DROPBEAR_RSA
-#define DROPBEAR_DSS
+/* #define DROPBEAR_DSS */
 /* ECDSA is significantly faster than RSA or DSS. Compiling in ECC
  * code (either ECDSA or ECDH) increases binary size - around 30kB
  * on x86-64 */
@@ -170,7 +167,7 @@ If you test it please contact the Dropbear author */
 
 /* Group14 (2048 bit) is recommended. Group1 is less secure (1024 bit) though
    is the only option for interoperability with some older SSH programs */
-#define DROPBEAR_DH_GROUP1 1
+/* #define DROPBEAR_DH_GROUP1 1 */
 #define DROPBEAR_DH_GROUP14 1
 
 /* Control the memory/performance/compression tradeoff for zlib.
@@ -194,7 +191,7 @@ If you test it please contact the Dropbear author */
 
 /* Whether to print the message of the day (MOTD). This doesn't add much code
  * size */
-#define DO_MOTD
+/* #define DO_MOTD */
 
 /* The MOTD file path */
 #ifndef MOTD_FILENAME
@@ -342,7 +339,7 @@ be overridden at runtime with -I. 0 disables idle timeouts */
 #define DEFAULT_IDLE_TIMEOUT 0
 
 /* The default path. This will often get replaced by the shell */
-#define DEFAULT_PATH "/usr/bin:/bin"
+#define DEFAULT_PATH "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/sbin:/usr/local/bin"
 
 /* Some other defines (that mostly should be left alone) are defined
  * in sysoptions.h */
