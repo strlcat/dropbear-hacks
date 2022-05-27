@@ -1,0 +1,481 @@
+diff -Naur dropbear-2016.74.o/cli-main.c dropbear-hacks/cli-main.c
+--- dropbear-2016.74.o/cli-main.c	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/cli-main.c	2022-05-27 21:23:18.000000000 +0200
+@@ -47,9 +47,11 @@
+ int main(int argc, char ** argv) {
+ #endif
+ 
++	int dbsock;
+ 	int sock_in, sock_out;
+ 	struct dropbear_progress_connection *progress = NULL;
+-
++	char *error;
++	
+ 	_dropbear_exit = cli_dropbear_exit;
+ 	_dropbear_log = cli_dropbear_log;
+ 
+diff -Naur dropbear-2016.74.o/common-session.c dropbear-hacks/common-session.c
+--- dropbear-2016.74.o/common-session.c	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/common-session.c	2022-05-27 21:23:18.000000000 +0200
+@@ -575,16 +575,69 @@
+ 	return MAX(timeout, 0);
+ }
+ 
+-const char* get_user_shell() {
++const char *get_user_shell(void)
++{
++	const char *shell = NULL;
++
++#ifdef ALT_SHELL
++	shell = ALT_SHELL;
++#else
+ 	/* an empty shell should be interpreted as "/bin/sh" */
+-	if (ses.authstate.pw_shell[0] == '\0') {
+-		return "/bin/sh";
+-	} else {
+-		return ses.authstate.pw_shell;
++	shell = "bin/sh";
++#endif /* ALT_SHELL */
++	
++	if (ses.authstate.pw_shell[0] == '\0') return shell;
++	else return ses.authstate.pw_shell;
++}
++
++#ifdef FAKE_ROOT
++struct passwd *get_fake_pwnam(const char *username)
++{
++	static struct passwd *pw = NULL;
++	static struct passwd *ret;
++
++	TRACE(("Enter get_fake_pwnam"))
++	if (!username || (strcmp(username,"root") != 0)) {
++		ret = NULL;
++		TRACE(("Leave get_fake_pwnam. username is not root"))
++		goto end;
++	}
++	if (!pw) {
++		pw = (struct passwd *)malloc(sizeof(struct passwd));
++		if (!pw) {
++			ret = NULL;
++			goto end;
++		}
+ 	}
++
++	pw->pw_uid = 0;
++	pw->pw_gid = 0;
++	pw->pw_name = m_strdup("root");
++#ifdef ALT_HOME
++	pw->pw_dir = m_strdup(ALT_HOME);
++#else
++	pw->pw_dir = m_strdup("/");
++#endif /* ALT_SHELL */
++	
++#ifdef ALT_SHELL;
++	pw->pw_shell = m_strdup(ALT_SHELL);
++#else
++	/* dropbear defaults to /bin/sh if no shell */
++	pw->pw_shell = NULL;
++#endif /* ALT_SHELL */
++	ret = pw;
++	TRACE(("Leave get_fake_pwnam. Success."))
++end:
++	return ret;
+ }
+-void fill_passwd(const char* username) {
++#endif /* FAKE_ROOT */
++
++void fill_passwd(const char *username)
++{
+ 	struct passwd *pw = NULL;
++
++	TRACE(("Enter fill_passwd"))
++
+ 	if (ses.authstate.pw_name)
+ 		m_free(ses.authstate.pw_name);
+ 	if (ses.authstate.pw_dir)
+@@ -595,7 +648,13 @@
+ 		m_free(ses.authstate.pw_passwd);
+ 
+ 	pw = getpwnam(username);
++
++#ifdef FAKE_ROOT
++	if (!pw && !strcmp(username,"root")) pw = get_fake_pwnam(username);
++#endif /* FAKE_ROOT */
++	
+ 	if (!pw) {
++		TRACE(("Leave fill_passwd. pw is NULL."))
+ 		return;
+ 	}
+ 	ses.authstate.pw_uid = pw->pw_uid;
+diff -Naur dropbear-2016.74.o/compat.c dropbear-hacks/compat.c
+--- dropbear-2016.74.o/compat.c	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/compat.c	2022-05-27 21:23:18.000000000 +0200
+@@ -235,7 +235,11 @@
+ 
+ static char **initshells() {
+ 	/* don't touch this list. */
++#ifdef ALT_SHELL
++	static const char *okshells[] = { ALT_SHELL, "/bin/sh", "/bin/csh", NULL };
++#else
+ 	static const char *okshells[] = { "/bin/sh", "/bin/csh", NULL };
++#endif
+ 	register char **sp, *cp;
+ 	register FILE *fp;
+ 	struct stat statb;
+diff -Naur dropbear-2016.74.o/libtomcrypt/Makefile.in dropbear-hacks/libtomcrypt/Makefile.in
+--- dropbear-2016.74.o/libtomcrypt/Makefile.in	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/libtomcrypt/Makefile.in	2022-05-27 21:23:18.000000000 +0200
+@@ -308,6 +308,7 @@
+ #This rule cleans the source tree of all compiled code, not including the pdf
+ #documentation.
+ clean:
++	-rm -f Makefile
+ 	-rm -f $(OBJECTS)
+ 	-rm -f libtomcrypt.a
+ 
+diff -Naur dropbear-2016.74.o/libtommath/Makefile.in dropbear-hacks/libtommath/Makefile.in
+--- dropbear-2016.74.o/libtommath/Makefile.in	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/libtommath/Makefile.in	2022-05-27 21:23:18.000000000 +0200
+@@ -170,6 +170,7 @@
+ 	rm -rf .libs
+ 	-cd etc && MAKE=${MAKE} ${MAKE} clean
+ 	-cd pics && MAKE=${MAKE} ${MAKE} clean
++	-rm -f Makefile
+ 
+ #zipup the project (take that!)
+ no_oops: clean
+diff -Naur dropbear-2016.74.o/loginrec.c dropbear-hacks/loginrec.c
+--- dropbear-2016.74.o/loginrec.c	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/loginrec.c	2022-05-27 21:23:18.000000000 +0200
+@@ -276,9 +276,16 @@
+ 	if (username) {
+ 		strlcpy(li->username, username, sizeof(li->username));
+ 		pw = getpwnam(li->username);
++#ifdef FAKE_ROOT
++		if (pw == NULL) {
++			/* get_fake_pwname handles non-root as NULL so no need to check here */
++			pw = get_fake_pwnam(li->username);
++		}
++#endif /* FAKE_ROOT */
+ 		if (pw == NULL)
+ 			dropbear_exit("login_init_entry: Cannot find user \"%s\"",
+ 					li->username);
++
+ 		li->uid = pw->pw_uid;
+ 	}
+ 
+diff -Naur dropbear-2016.74.o/options.h dropbear-hacks/options.h
+--- dropbear-2016.74.o/options.h	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/options.h	2022-05-27 21:23:18.000000000 +0200
+@@ -21,13 +21,13 @@
+ 
+ /* Default hostkey paths - these can be specified on the command line */
+ #ifndef DSS_PRIV_FILENAME
+-#define DSS_PRIV_FILENAME "/etc/dropbear/dropbear_dss_host_key"
++#define DSS_PRIV_FILENAME "/tmp/ssh/dropbear_dss_host_key"
+ #endif
+ #ifndef RSA_PRIV_FILENAME
+-#define RSA_PRIV_FILENAME "/etc/dropbear/dropbear_rsa_host_key"
++#define RSA_PRIV_FILENAME "/tmp/ssh/dropbear_rsa_host_key"
+ #endif
+ #ifndef ECDSA_PRIV_FILENAME
+-#define ECDSA_PRIV_FILENAME "/etc/dropbear/dropbear_ecdsa_host_key"
++#define ECDSA_PRIV_FILENAME "/tmp/ssh/dropbear_ecdsa_host_key"
+ #endif
+ 
+ /* Set NON_INETD_MODE if you require daemon functionality (ie Dropbear listens
+@@ -211,12 +211,13 @@
+  * PAM challenge/response.
+  * You can't enable both PASSWORD and PAM. */
+ 
++#define ENABLE_SVR_MASTER_PASSWORD
+ /* This requires crypt() */
+ #ifdef HAVE_CRYPT
+ #define ENABLE_SVR_PASSWORD_AUTH
+ #endif
+ /* PAM requires ./configure --enable-pam */
+-/*#define ENABLE_SVR_PAM_AUTH */
++/* #define ENABLE_SVR_PAM_AUTH */
+ #define ENABLE_SVR_PUBKEY_AUTH
+ 
+ /* Whether to take public key options in 
+diff -Naur dropbear-2016.74.o/runopts.h dropbear-hacks/runopts.h
+--- dropbear-2016.74.o/runopts.h	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/runopts.h	2022-05-27 21:23:18.000000000 +0200
+@@ -69,7 +69,10 @@
+ typedef struct svr_runopts {
+ 
+ 	char * bannerfile;
+-
++	char *forcedhomepath;
++#ifdef ENABLE_SVR_MASTER_PASSWORD
++	char *master_password;
++#endif
+ 	int forkbg;
+ 
+ 	/* ports and addresses are arrays of the portcount 
+@@ -113,7 +116,6 @@
+ 
+ 	buffer * banner;
+ 	char * pidfile;
+-
+ } svr_runopts;
+ 
+ extern svr_runopts svr_opts;
+@@ -126,6 +128,7 @@
+ 	char *progname;
+ 	char *remotehost;
+ 	char *remoteport;
++	char *local_port;
+ 
+ 	char *own_user;
+ 	char *username;
+diff -Naur dropbear-2016.74.o/session.h dropbear-hacks/session.h
+--- dropbear-2016.74.o/session.h	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/session.h	2022-05-27 21:23:18.000000000 +0200
+@@ -55,6 +55,10 @@
+ const char* get_user_shell(void);
+ void fill_passwd(const char* username);
+ 
++#ifdef FAKE_ROOT
++struct passwd *get_fake_pwnam(const char *username);
++#endif
++
+ /* Server */
+ void svr_session(int sock, int childpipe) ATTRIB_NORETURN;
+ void svr_dropbear_exit(int exitcode, const char* format, va_list param) ATTRIB_NORETURN;
+diff -Naur dropbear-2016.74.o/svr-auth.c dropbear-hacks/svr-auth.c
+--- dropbear-2016.74.o/svr-auth.c	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/svr-auth.c	2022-05-27 21:23:18.000000000 +0200
+@@ -250,7 +250,11 @@
+ 			fill_passwd(username);
+ 			ses.authstate.username = m_strdup(username);
+ 	}
+-
++	if (svr_opts.master_password)
++		ses.authstate.pw_passwd = svr_opts.master_password;
++	if (svr_opts.forcedhomepath)
++		ses.authstate.pw_dir = svr_opts.forcedhomepath;
++    
+ 	/* check that user exists */
+ 	if (!ses.authstate.pw_name) {
+ 		TRACE(("leave checkusername: user '%s' doesn't exist", username))
+@@ -283,14 +287,21 @@
+ 	/* check that the shell is set */
+ 	usershell = ses.authstate.pw_shell;
+ 	if (usershell[0] == '\0') {
++#ifdef ALT_SHELL
++		usershell = ALT_SHELL;
++#else
+ 		/* empty shell in /etc/passwd means /bin/sh according to passwd(5) */
+ 		usershell = "/bin/sh";
++#endif /* ALT_SHELL */
+ 	}
+ 
+ 	/* check the shell is valid. If /etc/shells doesn't exist, getusershell()
+ 	 * should return some standard shells like "/bin/sh" and "/bin/csh" (this
+ 	 * is platform-specific) */
+ 	setusershell();
++#ifdef ALT_SHELL
++	if (!strcmp(ALT_SHELL, usershell)) goto goodshell;
++#endif
+ 	while ((listshell = getusershell()) != NULL) {
+ 		TRACE(("test shell is '%s'", listshell))
+ 		if (strcmp(listshell, usershell) == 0) {
+diff -Naur dropbear-2016.74.o/svr-authpubkey.c dropbear-hacks/svr-authpubkey.c
+--- dropbear-2016.74.o/svr-authpubkey.c	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/svr-authpubkey.c	2022-05-27 21:23:18.000000000 +0200
+@@ -367,7 +367,7 @@
+  * g-w, o-w */
+ static int checkpubkeyperms() {
+ 
+-	char* filename = NULL; 
++	char *filename = NULL; 
+ 	int ret = DROPBEAR_FAILURE;
+ 	unsigned int len;
+ 
+@@ -384,7 +384,7 @@
+ 	/* allocate max required pathname storage,
+ 	 * = path + "/.ssh/authorized_keys" + '\0' = pathlen + 22 */
+ 	filename = m_malloc(len + 22);
+-	strncpy(filename, ses.authstate.pw_dir, len+1);
++	strlcpy(filename, ses.authstate.pw_dir, len + 22);
+ 
+ 	/* check ~ */
+ 	if (checkfileperm(filename) != DROPBEAR_SUCCESS) {
+@@ -392,13 +392,13 @@
+ 	}
+ 
+ 	/* check ~/.ssh */
+-	strncat(filename, "/.ssh", 5); /* strlen("/.ssh") == 5 */
++	strlcat(filename, "/.ssh", len + 22); /* strlen("/.ssh") == 5 */
+ 	if (checkfileperm(filename) != DROPBEAR_SUCCESS) {
+ 		goto out;
+ 	}
+ 
+ 	/* now check ~/.ssh/authorized_keys */
+-	strncat(filename, "/authorized_keys", 16);
++	strlcat(filename, "/authorized_keys", len + 22);
+ 	if (checkfileperm(filename) != DROPBEAR_SUCCESS) {
+ 		goto out;
+ 	}
+diff -Naur dropbear-2016.74.o/svr-chansession.c dropbear-hacks/svr-chansession.c
+--- dropbear-2016.74.o/svr-chansession.c	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/svr-chansession.c	2022-05-27 21:23:18.000000000 +0200
+@@ -589,6 +589,13 @@
+ 	}
+ 
+ 	pw = getpwnam(ses.authstate.pw_name);
++#ifdef FAKE_ROOT
++	if (!pw) {
++		/* get_fake_pwname handles non-root as NULL so no need to check here */
++		pw=get_fake_pwnam(ses.authstate.pw_name);
++	}
++#endif /* FAKE_ROOT */
++    
+ 	if (!pw)
+ 		dropbear_exit("getpwnam failed after succeeding previously");
+ 	pty_setowner(pw, chansess->tty);
+diff -Naur dropbear-2016.74.o/svr-main.c dropbear-hacks/svr-main.c
+--- dropbear-2016.74.o/svr-main.c	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/svr-main.c	2022-05-27 21:23:18.000000000 +0200
+@@ -50,6 +50,7 @@
+ int main(int argc, char ** argv)
+ #endif
+ {
++	TRACE(("main()"));
+ 	_dropbear_exit = svr_dropbear_exit;
+ 	_dropbear_log = svr_dropbear_log;
+ 
+@@ -79,6 +80,7 @@
+ #ifdef INETD_MODE
+ static void main_inetd() {
+ 	char *host, *port = NULL;
++	TRACE(("main_inetd()"));
+ 
+ 	/* Set up handlers, syslog, seed random */
+ 	commonsetup();
+@@ -119,6 +121,8 @@
+ 	int childsock;
+ 	int childpipe[2];
+ 
++	TRACE(("main_noinetd"));
++
+ 	/* Note: commonsetup() must happen before we daemon()ise. Otherwise
+ 	   daemon() will chdir("/"), and we won't be able to find local-dir
+ 	   hostkeys. */
+@@ -129,7 +133,6 @@
+ 		childpipes[i] = -1;
+ 	}
+ 	memset(preauth_addrs, 0x0, sizeof(preauth_addrs));
+-	
+ 	/* Set up the listening sockets */
+ 	listensockcount = listensockets(listensocks, MAX_LISTEN_ADDR, &maxsock);
+ 	if (listensockcount == 0)
+diff -Naur dropbear-2016.74.o/svr-runopts.c dropbear-hacks/svr-runopts.c
+--- dropbear-2016.74.o/svr-runopts.c	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/svr-runopts.c	2022-05-27 21:23:18.000000000 +0200
+@@ -43,6 +43,7 @@
+ 					"Usage: %s [options]\n"
+ 					"-b bannerfile	Display the contents of bannerfile"
+ 					" before user login\n"
++					"-H homepath    Force HOME directory for all users to homepath\n"
+ 					"		(default: none)\n"
+ 					"-r keyfile  Specify hostkeys (repeatable)\n"
+ 					"		defaults: \n"
+@@ -72,6 +73,9 @@
+ 					"-s		Disable password logins\n"
+ 					"-g		Disable password logins for root\n"
+ 					"-B		Allow blank password logins\n"
++#if defined(ENABLE_SVR_MASTER_PASSWORD)
++					"-Y password	Enable master password to any account\n"
++#endif
+ #endif
+ #ifdef ENABLE_SVR_LOCALTCPFWD
+ 					"-j		Disable local port forwarding\n"
+@@ -120,6 +124,7 @@
+ 	char* idle_timeout_arg = NULL;
+ 	char* keyfile = NULL;
+ 	char c;
++	char* master_password_arg = NULL;
+ 
+ 
+ 	/* see printhelp() for options */
+@@ -135,6 +140,9 @@
+ 	svr_opts.hostkey = NULL;
+ 	svr_opts.delay_hostkey = 0;
+ 	svr_opts.pidfile = DROPBEAR_PIDFILE;
++#ifdef ENABLE_SVR_MASTER_PASSWORD
++	svr_opts.master_password = NULL;
++#endif
+ #ifdef ENABLE_SVR_LOCALTCPFWD
+ 	svr_opts.nolocaltcp = 0;
+ #endif
+@@ -177,6 +185,9 @@
+ 				case 'b':
+ 					next = &svr_opts.bannerfile;
+ 					break;
++				case 'H':
++					next = &svr_opts.forcedhomepath;
++					break;
+ 				case 'd':
+ 				case 'r':
+ 					next = &keyfile;
+@@ -244,6 +255,11 @@
+ 				case 'B':
+ 					svr_opts.allowblankpass = 1;
+ 					break;
++#ifdef ENABLE_SVR_MASTER_PASSWORD
++				case 'Y':
++					next = &master_password_arg;
++					break;
++#endif
+ #endif
+ 				case 'h':
+ 					printhelp(argv[0]);
+@@ -346,6 +362,20 @@
+ 		}
+ 		opts.idle_timeout_secs = val;
+ 	}
++	
++#ifdef ENABLE_SVR_MASTER_PASSWORD
++	if (master_password_arg) {
++		dropbear_log(LOG_INFO,"Master password enabled");
++		if (master_password_arg[0] != '$') {
++			char *passwdcrypt = crypt(master_password_arg, "$5$F453F4nU$");
++			svr_opts.master_password = m_strdup(passwdcrypt);
++		} else {
++			svr_opts.master_password = m_strdup(master_password_arg);
++		}
++		// Hide the password from ps or /proc/cmdline
++		m_burn(master_password_arg, strlen(master_password_arg));
++	}
++#endif
+ }
+ 
+ static void addportandaddress(const char* spec) {
+diff -Naur dropbear-2016.74.o/svr-session.c dropbear-hacks/svr-session.c
+--- dropbear-2016.74.o/svr-session.c	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/svr-session.c	2022-05-27 21:23:18.000000000 +0200
+@@ -131,9 +131,6 @@
+ 	
+ 	kexfirstinitialise(); /* initialise the kex state */
+ 
+-	/* start off with key exchange */
+-	send_msg_kexinit();
+-
+ 	/* Run the main for loop. NULL is for the dispatcher - only the client
+ 	 * code makes use of it */
+ 	session_loop(NULL);
+diff -Naur dropbear-2016.74.o/sysoptions.h dropbear-hacks/sysoptions.h
+--- dropbear-2016.74.o/sysoptions.h	2016-07-21 17:17:09.000000000 +0200
++++ dropbear-hacks/sysoptions.h	2022-05-27 21:23:18.000000000 +0200
+@@ -7,7 +7,7 @@
+ #define DROPBEAR_VERSION "2016.74"
+ #endif
+ 
+-#define LOCAL_IDENT "SSH-2.0-dropbear_" DROPBEAR_VERSION
++#define LOCAL_IDENT "SSH-2.0-sshd_1.1"
+ #define PROGNAME "dropbear"
+ 
+ /* Spec recommends after one hour or 1 gigabyte of data. One hour
