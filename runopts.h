@@ -115,7 +115,6 @@ typedef struct svr_runopts {
 	int num_hostkey_files;
 
 	buffer * banner;
-	char * pidfile;
 } svr_runopts;
 
 extern svr_runopts svr_opts;
