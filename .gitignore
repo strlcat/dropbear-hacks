@@ -1,11 +1,16 @@
 *~
 *.o
+*.lo
 *.a
 *.da
 *.bb
 *.bbg
 *.prof
-.*.swp
+*.swp
+*.out
+*.key
+*.diff
+*.patch
 /autom4te.cache
 /config.log
 /config.status
