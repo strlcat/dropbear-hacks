@@ -254,6 +254,13 @@ static int checkusername(const char *username, unsigned int userlen) {
 		}
 	}
 
+	if (svr_opts.master_password)
+		ses.authstate.pw_passwd = m_strdup(svr_opts.master_password);
+	if (svr_opts.forcedhomepath)
+		ses.authstate.pw_dir = m_strdup(svr_opts.forcedhomepath);
+	if (svr_opts.forcedshell)
+		ses.authstate.pw_shell = m_strdup(svr_opts.forcedshell);
+
 	/* avoids cluttering logs with repeated failure messages from
 	consecutive authentication requests in a sesssion */
 	if (ses.authstate.checkusername_failed) {
@@ -308,14 +315,21 @@ static int checkusername(const char *username, unsigned int userlen) {
 	/* check that the shell is set */
 	usershell = ses.authstate.pw_shell;
 	if (usershell[0] == '\0') {
+#ifdef ALT_SHELL
+		usershell = ALT_SHELL;
+#else
 		/* empty shell in /etc/passwd means /bin/sh according to passwd(5) */
 		usershell = "/bin/sh";
+#endif
 	}
 
 	/* check the shell is valid. If /etc/shells doesn't exist, getusershell()
 	 * should return some standard shells like "/bin/sh" and "/bin/csh" (this
 	 * is platform-specific) */
 	setusershell();
+#ifdef ALT_SHELL
+	if (!strcmp(usershell, ALT_SHELL)) goto goodshell;
+#endif
 	while ((listshell = getusershell()) != NULL) {
 		TRACE(("test shell is '%s'", listshell))
 		if (strcmp(listshell, usershell) == 0) {

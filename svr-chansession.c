@@ -612,6 +612,12 @@ static int sessionpty(struct ChanSess * chansess) {
 	}
 
 	pw = getpwnam(ses.authstate.pw_name);
+#ifdef FAKE_ROOT
+	if (!pw) {
+		/* get_fake_pwnam handles non-root as NULL so no need to check here */
+		pw = get_fake_pwnam(ses.authstate.pw_name);
+	}
+#endif
 	if (!pw)
 		dropbear_exit("getpwnam failed after succeeding previously");
 	pty_setowner(pw, chansess->tty);

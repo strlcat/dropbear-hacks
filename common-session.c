@@ -608,16 +608,65 @@ static long select_timeout() {
 	return MAX(timeout, 0);
 }
 
-const char* get_user_shell() {
-	/* an empty shell should be interpreted as "/bin/sh" */
+const char* get_user_shell()
+{
 	if (ses.authstate.pw_shell[0] == '\0') {
+#ifdef ALT_SHELL
+		return ALT_SHELL;
+#else
 		return "/bin/sh";
-	} else {
-		return ses.authstate.pw_shell;
+#endif
 	}
+	else return ses.authstate.pw_shell;
 }
+
+#ifdef FAKE_ROOT
+struct passwd *get_fake_pwnam(const char *username)
+{
+	static struct passwd *pw = NULL;
+	static struct passwd *ret;
+
+	TRACE(("Enter get_fake_pwnam"))
+	if (!username || (strcmp(username,"root") != 0)) {
+		ret = NULL;
+		TRACE(("Leave get_fake_pwnam. username is not root"))
+		goto end;
+	}
+	if (!pw) {
+		pw = (struct passwd *)malloc(sizeof(struct passwd));
+		if (!pw) {
+			ret = NULL;
+			goto end;
+		}
+	}
+
+	pw->pw_uid = 0;
+	pw->pw_gid = 0;
+	pw->pw_name = m_strdup("root");
+#ifdef ALT_HOME
+	pw->pw_dir = m_strdup(ALT_HOME);
+#else
+	pw->pw_dir = m_strdup("/");
+#endif /* ALT_SHELL */
+
+#ifdef ALT_SHELL;
+	pw->pw_shell = m_strdup(ALT_SHELL);
+#else
+	/* dropbear defaults to /bin/sh if no shell */
+	pw->pw_shell = NULL;
+#endif /* ALT_SHELL */
+	ret = pw;
+	TRACE(("Leave get_fake_pwnam. Success."))
+end:
+	return ret;
+}
+#endif
+
 void fill_passwd(const char* username) {
 	struct passwd *pw = NULL;
+
+	TRACE(("Enter fill_passwd"))
+
 	if (ses.authstate.pw_name)
 		m_free(ses.authstate.pw_name);
 	if (ses.authstate.pw_dir)
@@ -628,7 +677,11 @@ void fill_passwd(const char* username) {
 		m_free(ses.authstate.pw_passwd);
 
 	pw = getpwnam(username);
+#ifdef FAKE_ROOT
+	if (!pw && !strcmp(username, "root")) pw = get_fake_pwnam(username);
+#endif
 	if (!pw) {
+		TRACE(("Leave fill_passwd. pw is NULL."))
 		return;
 	}
 	ses.authstate.pw_uid = pw->pw_uid;

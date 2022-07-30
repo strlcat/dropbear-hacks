@@ -7,7 +7,11 @@
 #define DROPBEAR_VERSION "2022.82"
 #endif
 
-#define LOCAL_IDENT "SSH-2.0-dropbear_" DROPBEAR_VERSION
+#ifndef SSHD_VERSION
+#define SSHD_VERSION "sshd_1.2"
+#endif
+
+#define LOCAL_IDENT "SSH-2.0-" SSHD_VERSION
 #define PROGNAME "dropbear"
 
 /* Spec recommends after one hour or 1 gigabyte of data. One hour
@@ -209,8 +213,6 @@
 #define MAX_PUBKEY_SIZE 1700
 /* For a 4096 bit DSS key, empirically determined */
 #define MAX_PRIVKEY_SIZE 1700
-
-#define MAX_HOSTKEYS 4
 
 /* The maximum size of the bignum portion of the kexhash buffer */
 /* Sect. 8 of the transport rfc 4253, K_S + e + f + K */

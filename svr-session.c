@@ -192,8 +192,10 @@ void svr_session(int sock, int childpipe) {
 	
 	kexfirstinitialise(); /* initialise the kex state */
 
+#if !DROPBEAR_DELAY_QUERY_METHODS
 	/* start off with key exchange */
 	send_msg_kexinit();
+#endif
 
 #if DROPBEAR_FUZZ
     if (fuzz.fuzzing) {
@@ -309,7 +311,7 @@ void svr_dropbear_exit(int exitcode, const char* format, va_list param) {
 void svr_dropbear_log(int priority, const char* format, va_list param) {
 
 	char printbuf[1024];
-	char datestr[20];
+	char datestr[28];
 	time_t timesec;
 	int havetrace = 0;
 
@@ -332,7 +334,7 @@ void svr_dropbear_log(int priority, const char* format, va_list param) {
 		timesec = time(NULL);
 		local_tm = localtime(&timesec);
 		if (local_tm == NULL
-			|| strftime(datestr, sizeof(datestr), "%b %d %H:%M:%S", 
+			|| strftime(datestr, sizeof(datestr), "%a %d %b %Y %H:%M:%S",
 						local_tm) == 0)
 		{
 			/* upon failure, just print the epoch-seconds time. */

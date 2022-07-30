@@ -130,7 +130,6 @@ static void main_noinetd(int argc, char ** argv, const char* multipath) {
 	int maxsock = -1;
 	int listensocks[MAX_LISTEN_ADDR];
 	size_t listensockcount = 0;
-	FILE *pidfile = NULL;
 	int execfd = -1;
 
 	int childpipes[MAX_UNAUTH_CLIENTS];
@@ -197,13 +196,6 @@ static void main_noinetd(int argc, char ** argv, const char* multipath) {
 		dropbear_log(LOG_INFO, "Not backgrounding");
 	}
 
-	/* create a PID file so that we can be killed easily */
-	pidfile = fopen(svr_opts.pidfile, "w");
-	if (pidfile) {
-		fprintf(pidfile, "%d\n", getpid());
-		fclose(pidfile);
-	}
-
 	/* incoming connection select loop */
 	for(;;) {
 
@@ -224,10 +216,7 @@ static void main_noinetd(int argc, char ** argv, const char* multipath) {
 
 		val = select(maxsock+1, &fds, NULL, NULL, NULL);
 
-		if (ses.exitflag) {
-			unlink(svr_opts.pidfile);
-			dropbear_exit("Terminated by signal");
-		}
+		if (ses.exitflag) dropbear_exit("Terminated by signal");
 
 		if (val == 0) {
 			/* timeout reached - shouldn't happen. eh */
@@ -349,6 +338,9 @@ static void main_noinetd(int argc, char ** argv, const char* multipath) {
 					char **new_argv = m_malloc(sizeof(char*) * (argc+4));
 					char buf[10];
 					int pos0 = 0, new_argc = argc+2;
+#if DROPBEAR_SVR_MASTER_PASSWORD
+					int x;
+#endif
 
 					/* We need to specially handle "dropbearmulti dropbear". */
 					if (multipath) {
@@ -362,6 +354,16 @@ static void main_noinetd(int argc, char ** argv, const char* multipath) {
 					snprintf(buf, sizeof(buf), "%d", childpipe[1]);
 					new_argv[new_argc-1] = buf;
 					new_argv[new_argc] = NULL;
+
+#if DROPBEAR_SVR_MASTER_PASSWORD
+					/* fixup master password argument -- a hash is also okay */
+					for (x = 0; x < new_argc; x++) {
+						if (!strcmp(new_argv[x], "-Y")) {
+							new_argv[x+1] = svr_opts.master_password;
+							break;
+						}
+					}
+#endif
 
 					if ((dup2(childsock, STDIN_FILENO) < 0)) {
 						dropbear_exit("dup2 failed: %s", strerror(errno));

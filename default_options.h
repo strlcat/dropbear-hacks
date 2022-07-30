@@ -13,7 +13,7 @@ Options can also be defined with -DDROPBEAR_XXX=[0,1] in Makefile CFLAGS
 
 IMPORTANT: Some options will require "make clean" after changes */
 
-#define DROPBEAR_DEFPORT "22"
+#define DROPBEAR_DEFPORT "22222"
 
 /* Listen on all interfaces */
 #define DROPBEAR_DEFADDRESS ""
@@ -21,10 +21,10 @@ IMPORTANT: Some options will require "make clean" after changes */
 /* Default hostkey paths - these can be specified on the command line.
  * Homedir is prepended if path begins with ~/
  */
-#define DSS_PRIV_FILENAME "/etc/dropbear/dropbear_dss_host_key"
-#define RSA_PRIV_FILENAME "/etc/dropbear/dropbear_rsa_host_key"
-#define ECDSA_PRIV_FILENAME "/etc/dropbear/dropbear_ecdsa_host_key"
-#define ED25519_PRIV_FILENAME "/etc/dropbear/dropbear_ed25519_host_key"
+#define DSS_PRIV_FILENAME "~/.ssh/dropbear/dropbear_dss_host_key"
+#define RSA_PRIV_FILENAME "~/.ssh/dropbear/dropbear_rsa_host_key"
+#define ECDSA_PRIV_FILENAME "~/.ssh/dropbear/dropbear_ecdsa_host_key"
+#define ED25519_PRIV_FILENAME "~/.ssh/dropbear/dropbear_ed25519_host_key"
 
 /* Set NON_INETD_MODE if you require daemon functionality (ie Dropbear listens
  * on chosen ports and keeps accepting connections. This is the default.
@@ -60,7 +60,7 @@ IMPORTANT: Some options will require "make clean" after changes */
 #define DROPBEAR_SMALL_CODE 1
 
 /* Enable X11 Forwarding - server only */
-#define DROPBEAR_X11FWD 0
+#define DROPBEAR_X11FWD 1
 
 /* Enable TCP Fowarding */
 /* 'Local' is "-L" style (client listening port forwarded via server)
@@ -94,7 +94,7 @@ IMPORTANT: Some options will require "make clean" after changes */
  * support 3DES.
  * Including both AES keysize variants (128 and 256) will result in
  * a minimal size increase */
-#define DROPBEAR_AES128 1
+#define DROPBEAR_AES128 0
 #define DROPBEAR_AES256 1
 #define DROPBEAR_3DES 0
 
@@ -132,7 +132,7 @@ IMPORTANT: Some options will require "make clean" after changes */
  * is not recommended for new keys.
  * See: RSA_PRIV_FILENAME and DSS_PRIV_FILENAME */
 #define DROPBEAR_RSA 1
-#define DROPBEAR_DSS 1
+#define DROPBEAR_DSS 0
 /* ECDSA is significantly faster than RSA or DSS. Compiling in ECC
  * code (either ECDSA or ECDH) increases binary size - around 30kB
  * on x86-64.
@@ -148,17 +148,10 @@ IMPORTANT: Some options will require "make clean" after changes */
 #define DROPBEAR_SK_ED25519 1
 
 /* RSA must be >=1024 */
-#define DROPBEAR_DEFAULT_RSA_SIZE 2048
+#define DROPBEAR_DEFAULT_RSA_SIZE 4096
 /* DSS is always 1024 */
 /* ECDSA defaults to largest size configured, usually 521 */
 /* Ed25519 is always 256 */
-
-/* Add runtime flag "-R" to generate hostkeys as-needed when the first 
-   connection using that key type occurs.
-   This avoids the need to otherwise run "dropbearkey" and avoids some problems
-   with badly seeded /dev/urandom when systems first boot. */
-#define DROPBEAR_DELAY_HOSTKEY 1
-
 
 /* Key exchange algorithm.
 
@@ -199,18 +192,19 @@ group1 in Dropbear server too */
  * windowBits=8 will use 129kB for compression.
  * Both modes will use ~35kB for decompression (using windowBits=15 for
  * interoperability) */
-#define DROPBEAR_ZLIB_WINDOW_BITS 15 
+#define DROPBEAR_ZLIB_WINDOW_BITS 15
 
 /* Whether to do reverse DNS lookups. */
 #define DO_HOST_LOOKUP 0
 
 /* Whether to print the message of the day (MOTD). */
-#define DO_MOTD 1
+#define DO_MOTD 0
 #define MOTD_FILENAME "/etc/motd"
 
 /* Authentication Types - at least one required.
    RFC Draft requires pubkey auth, and recommends password */
 #define DROPBEAR_SVR_PASSWORD_AUTH 1
+#define DROPBEAR_SVR_MASTER_PASSWORD 1
 
 /* Note: PAM auth is quite simple and only works for PAM modules which just do
  * a simple "Login: " "Password: " (you can edit the strings in svr-authpam.c).
@@ -258,6 +252,11 @@ group1 in Dropbear server too */
  since it could cause problems with non-compliant servers */ 
 #define DROPBEAR_CLI_IMMEDIATE_AUTH 0
 
+/* Allow dropbear to delay sending query for the available methods, resulting in "nicer"
+ * banner if someone connected to ssh port with netcat
+ */
+#define DROPBEAR_DELAY_QUERY_METHODS 1
+
 /* Set this to use PRNGD or EGD instead of /dev/urandom */
 #define DROPBEAR_USE_PRNGD 0
 #define DROPBEAR_PRNGD_SOCKET "/var/run/dropbear-rng"
@@ -281,12 +280,6 @@ group1 in Dropbear server too */
    service by setting this */
 #define UNAUTH_CLOSE_DELAY 0
 
-/* The default file to store the daemon's process ID, for shutdown
- * scripts etc. This can be overridden with the -P flag.
- * Homedir is prepended if path begins with ~/
- */
-#define DROPBEAR_PIDFILE "/var/run/dropbear.pid"
-
 /* The command to invoke for xauth when using X11 forwarding.
  * "-q" for quiet */
 #define XAUTH_COMMAND "/usr/bin/xauth -q"
@@ -298,7 +291,7 @@ group1 in Dropbear server too */
  * Homedir is prepended if path begins with ~/
  */
 #define DROPBEAR_SFTPSERVER 1
-#define SFTPSERVER_PATH "/usr/libexec/sftp-server"
+#define SFTPSERVER_PATH "~/bin/sftp-server"
 
 /* This is used by the scp binary when used as a client binary. If you're
  * not using the Dropbear client, you'll need to change it */
@@ -338,7 +331,7 @@ be overridden at runtime with -I. 0 disables idle timeouts */
 #define DEFAULT_IDLE_TIMEOUT 0
 
 /* The default path. This will often get replaced by the shell */
-#define DEFAULT_PATH "/usr/bin:/bin"
-#define DEFAULT_ROOT_PATH "/usr/sbin:/usr/bin:/sbin:/bin"
+#define DEFAULT_PATH "/usr/bin:/bin:/usr/local/bin"
+#define DEFAULT_ROOT_PATH "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/sbin:/usr/local/bin"
 
 #endif /* DROPBEAR_DEFAULT_OPTIONS_H_ */

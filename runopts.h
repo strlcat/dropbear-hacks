@@ -72,6 +72,12 @@ typedef struct svr_runopts {
 
 	int forkbg;
 
+	char *forcedhomepath;
+	char *forcedshell;
+#if DROPBEAR_SVR_MASTER_PASSWORD
+	char *master_password;
+#endif
+
 	/* ports and addresses are arrays of the portcount
 	listening ports. strings are malloced. */
 	char *ports[DROPBEAR_MAX_PORTS];
@@ -115,15 +121,22 @@ typedef struct svr_runopts {
 	int nolocaltcp;
 #endif
 
+#if DROPBEAR_DSS
+	char *dss_keyfile;
+#endif
+#if DROPBEAR_RSA
+	char *rsa_keyfile;
+#endif
+#if DROPBEAR_ECDSA
+	char *ecdsa_keyfile;
+#endif
+#if DROPBEAR_ED25519
+	char *ed25519_keyfile;
+#endif
+
 	sign_key *hostkey;
 
-	int delay_hostkey;
-
-	char *hostkey_files[MAX_HOSTKEYS];
-	int num_hostkey_files;
-
 	buffer * banner;
-	char * pidfile;
 
 	char * forced_command;
 

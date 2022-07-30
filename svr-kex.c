@@ -101,8 +101,6 @@ void recv_msg_kexdh_init() {
 }
 
 
-#if DROPBEAR_DELAY_HOSTKEY
-
 static void svr_ensure_hostkey() {
 
 	const char* fn = NULL;
@@ -119,24 +117,24 @@ static void svr_ensure_hostkey() {
 	{
 #if DROPBEAR_RSA
 		case DROPBEAR_SIGNKEY_RSA:
-			fn = RSA_PRIV_FILENAME;
+			fn = svr_opts.rsa_keyfile;
 			break;
 #endif
 #if DROPBEAR_DSS
 		case DROPBEAR_SIGNKEY_DSS:
-			fn = DSS_PRIV_FILENAME;
+			fn = svr_opts.dss_keyfile;
 			break;
 #endif
 #if DROPBEAR_ECDSA
 		case DROPBEAR_SIGNKEY_ECDSA_NISTP256:
 		case DROPBEAR_SIGNKEY_ECDSA_NISTP384:
 		case DROPBEAR_SIGNKEY_ECDSA_NISTP521:
-			fn = ECDSA_PRIV_FILENAME;
+			fn = svr_opts.ecdsa_keyfile;
 			break;
 #endif
 #if DROPBEAR_ED25519
 		case DROPBEAR_SIGNKEY_ED25519:
-			fn = ED25519_PRIV_FILENAME;
+			fn = svr_opts.ed25519_keyfile;
 			break;
 #endif
 		default:
@@ -177,8 +175,7 @@ out:
 	}
     m_free(expand_fn);
 }
-#endif
-	
+
 /* Generate our side of the diffie-hellman key exchange value (dh_f), and
  * calculate the session key using the diffie-hellman algorithm. Following
  * that, the session hash is calculated, and signed with RSA or DSS. The
@@ -192,12 +189,7 @@ static void send_msg_kexdh_reply(mp_int *dh_e, buffer *ecdh_qs) {
 	/* we can start creating the kexdh_reply packet */
 	CHECKCLEARTOWRITE();
 
-#if DROPBEAR_DELAY_HOSTKEY
-	if (svr_opts.delay_hostkey)
-	{
-		svr_ensure_hostkey();
-	}
-#endif
+	svr_ensure_hostkey();
 
 #if DROPBEAR_FUZZ
 	if (fuzz.fuzzing && fuzz.skip_kexmaths) {
