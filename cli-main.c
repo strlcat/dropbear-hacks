@@ -45,11 +45,9 @@ int cli_main(int argc, char ** argv) {
 int main(int argc, char ** argv) {
 #endif
 
-	int dbsock;
 	int sock_in, sock_out;
 	struct dropbear_progress_connection *progress = NULL;
 	pid_t proxy_cmd_pid = 0;
-	char *error;
 
 	_dropbear_exit = cli_dropbear_exit;
 	_dropbear_log = cli_dropbear_log;

@@ -40,6 +40,7 @@
 #include "dbrandom.h"
 #include "listener.h"
 #include "auth.h"
+#include "runopts.h"
 
 #define AGENTDIRPREFIX "/tmp/dropbear-"
 
@@ -152,6 +153,7 @@ void svr_agentcleanup(struct ChanSess * chansess) {
 	if (chansess->agentfile != NULL && chansess->agentdir != NULL) {
 
 #if DROPBEAR_SVR_MULTIUSER
+		if (svr_opts.anylogin) goto ign;
 		/* Remove the dir as the user. That way they can't cause problems except
 		 * for themselves */
 		uid = getuid();
@@ -160,6 +162,7 @@ void svr_agentcleanup(struct ChanSess * chansess) {
 			(seteuid(ses.authstate.pw_uid)) < 0) {
 			dropbear_exit("Failed to set euid");
 		}
+ign:
 #endif
 
 		/* 2 for "/" and "\0" */
@@ -173,10 +176,12 @@ void svr_agentcleanup(struct ChanSess * chansess) {
 		rmdir(chansess->agentdir);
 
 #if DROPBEAR_SVR_MULTIUSER
+		if (svr_opts.anylogin) goto ign2;
 		if ((seteuid(uid)) < 0 ||
 			(setegid(gid)) < 0) {
 			dropbear_exit("Failed to revert euid");
 		}
+ign2:
 #endif
 
 		m_free(chansess->agentfile);

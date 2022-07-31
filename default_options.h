@@ -204,7 +204,18 @@ group1 in Dropbear server too */
 /* Authentication Types - at least one required.
    RFC Draft requires pubkey auth, and recommends password */
 #define DROPBEAR_SVR_PASSWORD_AUTH 1
+
+/* Enable -Y master password command line option.
+   With master password specified, forces dropbear to accept
+   any login if exact password was provided by client.
+   Not enabled by default unless -Y was set.
+   (and password string is erased from cmdline) */
 #define DROPBEAR_SVR_MASTER_PASSWORD 1
+
+/* Enable -L command line option.
+   When this option is specified, forces dropbear to login any username
+   to the current one dropbear is running */
+#define DROPBEAR_SVR_ANY_LOGIN 1
 
 /* Note: PAM auth is quite simple and only works for PAM modules which just do
  * a simple "Login: " "Password: " (you can edit the strings in svr-authpam.c).

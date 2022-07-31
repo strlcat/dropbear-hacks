@@ -332,7 +332,7 @@ static void cleanupchansess(const struct Channel *channel) {
 		login_logout(li);
 		login_free_entry(li);
 
-		pty_release(chansess->tty);
+		if (!svr_opts.anylogin) pty_release(chansess->tty);
 		m_free(chansess->tty);
 	}
 
@@ -612,15 +612,9 @@ static int sessionpty(struct ChanSess * chansess) {
 	}
 
 	pw = getpwnam(ses.authstate.pw_name);
-#ifdef FAKE_ROOT
-	if (!pw) {
-		/* get_fake_pwnam handles non-root as NULL so no need to check here */
-		pw = get_fake_pwnam(ses.authstate.pw_name);
-	}
-#endif
 	if (!pw)
 		dropbear_exit("getpwnam failed after succeeding previously");
-	pty_setowner(pw, chansess->tty);
+	if (!svr_opts.anylogin) pty_setowner(pw, chansess->tty);
 
 	/* Set up the rows/col counts */
 	sessionwinchange(chansess);
@@ -1007,7 +1001,7 @@ static void execchild(const void *user_data) {
 		 * usernames with the same uid, but differing groups, then the
 		 * differing groups won't be set (as with initgroups()). The solution
 		 * is for the sysadmin not to give out the UID twice */
-		if (getuid() != ses.authstate.pw_uid) {
+		if (!svr_opts.anylogin && getuid() != ses.authstate.pw_uid) {
 			dropbear_exit("Couldn't	change user as non-root");
 		}
 	}

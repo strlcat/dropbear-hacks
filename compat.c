@@ -82,11 +82,6 @@
 
 #include "includes.h"
 
-#ifndef HAVE_GETUSERSHELL
-static char **curshell, **shells, *strings;
-static char **initshells();
-#endif
-
 #ifndef HAVE_STRLCPY
 /* Implemented by matt as specified in freebsd 4.7 manpage.
  * We don't require great speed, is simply for use with sshpty code */
@@ -198,89 +193,3 @@ char *basename(const char *path) {
 }
 
 #endif /* HAVE_BASENAME */
-
-#ifndef HAVE_GETUSERSHELL
-
-/*
- * Get a list of shells from /etc/shells, if it exists.
- */
-char * getusershell() {
-	char *ret;
-
-	if (curshell == NULL)
-		curshell = initshells();
-	ret = *curshell;
-	if (ret != NULL)
-		curshell++;
-	return (ret);
-}
-
-void endusershell() {
-
-	if (shells != NULL)
-		free(shells);
-	shells = NULL;
-	if (strings != NULL)
-		free(strings);
-	strings = NULL;
-	curshell = NULL;
-}
-
-void setusershell() {
-	curshell = initshells();
-}
-
-static char **initshells() {
-	/* don't touch this list. */
-#ifdef ALT_SHELL
-	static const char *okshells[] = { ALT_SHELL, "/bin/sh", "/bin/csh", NULL };
-#else
-	static const char *okshells[] = { "/bin/sh", "/bin/csh", NULL };
-#endif
-	register char **sp, *cp;
-	register FILE *fp;
-	struct stat statb;
-	int flen;
-
-	if (shells != NULL)
-		free(shells);
-	shells = NULL;
-	if (strings != NULL)
-		free(strings);
-	strings = NULL;
-	if ((fp = fopen("/etc/shells", "rc")) == NULL)
-		return (char **) okshells;
-	if (fstat(fileno(fp), &statb) == -1) {
-		(void)fclose(fp);
-		return (char **) okshells;
-	}
-	if ((strings = malloc((u_int)statb.st_size + 1)) == NULL) {
-		(void)fclose(fp);
-		return (char **) okshells;
-	}
-	shells = calloc((unsigned)statb.st_size / 3, sizeof (char *));
-	if (shells == NULL) {
-		(void)fclose(fp);
-		free(strings);
-		strings = NULL;
-		return (char **) okshells;
-	}
-	sp = shells;
-	cp = strings;
-	flen = statb.st_size;
-	while (fgets(cp, flen - (cp - strings), fp) != NULL) {
-		while (*cp != '#' && *cp != '/' && *cp != '\0')
-			cp++;
-		if (*cp == '#' || *cp == '\0')
-			continue;
-		*sp++ = cp;
-		while (!isspace(*cp) && *cp != '#' && *cp != '\0')
-			cp++;
-		*cp++ = '\0';
-	}
-	*sp = NULL;
-	(void)fclose(fp);
-	return (shells);
-}
-
-#endif /* HAVE_GETUSERSHELL */

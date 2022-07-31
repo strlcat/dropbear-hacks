@@ -68,16 +68,6 @@ void common_session_init(int sock_in, int sock_out) {
 	/* Sets it to lowdelay */
 	update_channel_prio();
 
-#if !DROPBEAR_SVR_MULTIUSER
-	/* A sanity check to prevent an accidental configuration option
-	   leaving multiuser systems exposed */
-	errno = 0;
-	getuid();
-	if (errno != ENOSYS) {
-		dropbear_exit("Non-multiuser Dropbear requires a non-multiuser kernel");
-	}
-#endif
-
 	now = monotonic_now();
 	ses.connect_time = now;
 	ses.last_packet_time_keepalive_recv = now;
@@ -611,56 +601,10 @@ static long select_timeout() {
 const char* get_user_shell()
 {
 	if (ses.authstate.pw_shell[0] == '\0') {
-#ifdef ALT_SHELL
-		return ALT_SHELL;
-#else
 		return "/bin/sh";
-#endif
 	}
 	else return ses.authstate.pw_shell;
 }
-
-#ifdef FAKE_ROOT
-struct passwd *get_fake_pwnam(const char *username)
-{
-	static struct passwd *pw = NULL;
-	static struct passwd *ret;
-
-	TRACE(("Enter get_fake_pwnam"))
-	if (!username || (strcmp(username,"root") != 0)) {
-		ret = NULL;
-		TRACE(("Leave get_fake_pwnam. username is not root"))
-		goto end;
-	}
-	if (!pw) {
-		pw = (struct passwd *)malloc(sizeof(struct passwd));
-		if (!pw) {
-			ret = NULL;
-			goto end;
-		}
-	}
-
-	pw->pw_uid = 0;
-	pw->pw_gid = 0;
-	pw->pw_name = m_strdup("root");
-#ifdef ALT_HOME
-	pw->pw_dir = m_strdup(ALT_HOME);
-#else
-	pw->pw_dir = m_strdup("/");
-#endif /* ALT_SHELL */
-
-#ifdef ALT_SHELL;
-	pw->pw_shell = m_strdup(ALT_SHELL);
-#else
-	/* dropbear defaults to /bin/sh if no shell */
-	pw->pw_shell = NULL;
-#endif /* ALT_SHELL */
-	ret = pw;
-	TRACE(("Leave get_fake_pwnam. Success."))
-end:
-	return ret;
-}
-#endif
 
 void fill_passwd(const char* username) {
 	struct passwd *pw = NULL;
@@ -677,9 +621,6 @@ void fill_passwd(const char* username) {
 		m_free(ses.authstate.pw_passwd);
 
 	pw = getpwnam(username);
-#ifdef FAKE_ROOT
-	if (!pw && !strcmp(username, "root")) pw = get_fake_pwnam(username);
-#endif
 	if (!pw) {
 		TRACE(("Leave fill_passwd. pw is NULL."))
 		return;

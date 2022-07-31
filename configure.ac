@@ -839,7 +839,7 @@ fi
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MEMCMP
 AC_FUNC_SELECT_ARGTYPES
-AC_CHECK_FUNCS([getpass getspnam getusershell putenv])
+AC_CHECK_FUNCS([getpass getspnam putenv])
 AC_CHECK_FUNCS([clearenv strlcpy strlcat daemon basename _getpty getaddrinfo ])
 AC_CHECK_FUNCS([freeaddrinfo getnameinfo fork writev getgrouplist fexecve])
 

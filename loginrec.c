@@ -276,12 +276,6 @@ login_init_entry(struct logininfo *li, int pid, const char *username,
 	if (username) {
 		strlcpy(li->username, username, sizeof(li->username));
 		pw = getpwnam(li->username);
-#ifdef FAKE_ROOT
-		if (pw == NULL) {
-			/* get_fake_pwname handles non-root as NULL so no need to check here */
-			pw = get_fake_pwnam(li->username);
-		}
-#endif
 		if (pw == NULL)
 			dropbear_exit("login_init_entry: Cannot find user \"%s\"",
 					li->username);

@@ -82,6 +82,9 @@ static void printhelp(const char * progname) {
 					"		(default: none)\n"
 #endif
 #endif
+#if DROPBEAR_SVR_ANY_LOGIN
+					"-L		Ignore login username, always login as one server is running\n"
+#endif
 					"-H homepath	Force HOME directory for all users to homepath\n"
 					"		(default: none)\n"
 					"-S shellpath	Force different shell as default\n"
@@ -321,6 +324,11 @@ void svr_getopts(int argc, char ** argv) {
 					next = &master_password_arg;
 					break;
 #endif
+#endif
+#if DROPBEAR_SVR_ANY_LOGIN
+				case 'L':
+					svr_opts.anylogin = 1;
+					break;
 #endif
 				case 'h':
 					printhelp(argv[0]);

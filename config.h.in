@@ -123,9 +123,6 @@
 /* Define to 1 if you have the `getspnam' function. */
 #undef HAVE_GETSPNAM
 
-/* Define to 1 if you have the `getusershell' function. */
-#undef HAVE_GETUSERSHELL
-
 /* Define to 1 if you have the `getutent' function. */
 #undef HAVE_GETUTENT
 
