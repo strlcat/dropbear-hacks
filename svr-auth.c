@@ -98,6 +98,15 @@ void recv_msg_userauth_request() {
 	servicename = buf_getstring(ses.payload, &servicelen);
 	methodname = buf_getstring(ses.payload, &methodlen);
 
+#if DROPBEAR_SVR_FORCE_LOGIN
+	/* -U username: force login as username */
+	if (svr_opts.forcelogin) {
+		m_free(username);
+		username = m_strdup(svr_opts.forcelogin);
+		userlen = strlen(username);
+	}
+#endif
+
 	/* only handle 'ssh-connection' currently */
 	if (servicelen != SSH_SERVICE_CONNECTION_LEN
 			&& (strncmp(servicename, SSH_SERVICE_CONNECTION,
@@ -235,12 +244,6 @@ static int checkusername(const char *username, unsigned int userlen)
 		return DROPBEAR_FAILURE;
 	}
 
-	if (svr_opts.anylogin > 1) {
-		TRACE(("checkusername: user '%s' --> -L forces it to become 'root'", username))
-		username = ses.authstate.username = m_strdup("root");
-		userlen = strlen("root");
-	}
-
 	if (strlen(username) != userlen) {
 		dropbear_exit("Attempted username with a null byte");
 	}
@@ -272,17 +275,6 @@ refroot:	/* first request */
 
 	/* check that user exists */
 	if (!ses.authstate.pw_name) {
-		/* For -L: don't check username at all */
-		if (svr_opts.anylogin == 1) {
-			TRACE(("checkusername: user '%s' doesn't exist, but -L forces it to become 'root'", username))
-			dropbear_log(LOG_WARNING,
-					"Login attempt for nonexistent user '%s', redirecting to 'root'", username);
-			username = ses.authstate.username = m_strdup("root");
-			userlen = strlen("root");
-			svr_opts.anylogin++;
-			goto refroot;
-		}
-
 		TRACE(("leave checkusername: user '%s' doesn't exist", username))
 		dropbear_log(LOG_WARNING,
 				"Login attempt for nonexistent user '%s'", username);

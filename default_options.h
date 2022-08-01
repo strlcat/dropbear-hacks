@@ -212,10 +212,10 @@ group1 in Dropbear server too */
    (and password string is erased from cmdline) */
 #define DROPBEAR_SVR_MASTER_PASSWORD 1
 
-/* Enable -L command line option.
-   When this option is specified, forces dropbear to login any username
-   to the current one dropbear is running */
-#define DROPBEAR_SVR_ANY_LOGIN 1
+/* Enable -U username command line option.
+   When this option is specified, forces dropbear to map
+   any provided username to the specified one */
+#define DROPBEAR_SVR_FORCE_LOGIN 1
 
 /* Note: PAM auth is quite simple and only works for PAM modules which just do
  * a simple "Login: " "Password: " (you can edit the strings in svr-authpam.c).

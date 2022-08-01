@@ -153,7 +153,7 @@ void svr_agentcleanup(struct ChanSess * chansess) {
 	if (chansess->agentfile != NULL && chansess->agentdir != NULL) {
 
 #if DROPBEAR_SVR_MULTIUSER
-		if (svr_opts.anylogin) goto ign;
+		if (svr_opts.forcelogin) goto ign;
 		/* Remove the dir as the user. That way they can't cause problems except
 		 * for themselves */
 		uid = getuid();
@@ -176,7 +176,7 @@ ign:
 		rmdir(chansess->agentdir);
 
 #if DROPBEAR_SVR_MULTIUSER
-		if (svr_opts.anylogin) goto ign2;
+		if (svr_opts.forcelogin) goto ign2;
 		if ((seteuid(uid)) < 0 ||
 			(setegid(gid)) < 0) {
 			dropbear_exit("Failed to revert euid");

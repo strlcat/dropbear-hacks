@@ -429,7 +429,7 @@ static int checkpubkey(const char* keyalgo, unsigned int keyalgolen,
 
 #if DROPBEAR_SVR_MULTIUSER
 	/* For -L: don't check perms at all */
-	if (svr_opts.anylogin) goto ign;
+	if (svr_opts.forcelogin) goto ign;
 	/* access the file as the authenticating user. */
 	origuid = getuid();
 	origgid = getgid();
@@ -459,7 +459,7 @@ ign:
 	}
 #if DROPBEAR_SVR_MULTIUSER
 	/* For -L: don't check perms at all */
-	if (svr_opts.anylogin) goto ign2;
+	if (svr_opts.forcelogin) goto ign2;
 	if ((seteuid(origuid)) < 0 ||
 		(setegid(origgid)) < 0) {
 		dropbear_exit("Failed to revert euid");
