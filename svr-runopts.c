@@ -29,6 +29,7 @@
 #include "dbutil.h"
 #include "algo.h"
 #include "ecdsa.h"
+#include "gensignkey.h"
 
 #include <grp.h>
 
@@ -36,7 +37,7 @@ svr_runopts svr_opts; /* GLOBAL */
 
 static void printhelp(const char * progname);
 static void addportandaddress(const char* spec);
-static void loadhostkey(const char *keyfile, int fatal_duplicate);
+static void loadhostkey(enum signkey_type stype, const char *keyfile, int fatal_duplicate);
 
 static void printhelp(const char * progname) {
 
@@ -571,12 +572,21 @@ static void loadhostkey_helper(const char *name, void** src, void** dst, int fat
 }
 
 /* Must be called after syslog/etc is working */
-static void loadhostkey(const char *keyfile, int fatal_duplicate) {
+static void loadhostkey(enum signkey_type stype, const char *keyfile, int fatal_duplicate) {
 	sign_key * read_key = new_sign_key();
 	char *expand_path = expand_homedir_path(keyfile);
 	enum signkey_type type = DROPBEAR_SIGNKEY_ANY;
+
+loadagain:
 	if (readhostkey(expand_path, read_key, &type) == DROPBEAR_FAILURE) {
-		dropbear_log(LOG_WARNING, "Failed loading %s", expand_path);
+		dropbear_log(LOG_WARNING, "%s does not exist, regenerating...", expand_path);
+		if (signkey_generate(stype, 0, expand_path, 1) == DROPBEAR_FAILURE) {
+			dropbear_log(LOG_WARNING, "Failed generating %s hostkey", expand_path);
+		}
+		else {
+			dropbear_log(LOG_WARNING, "Successfully generated %s hostkey", expand_path);
+			goto loadagain;
+		}
 	}
 	m_free(expand_path);
 
@@ -629,18 +639,18 @@ void load_all_hostkeys() {
 	svr_opts.hostkey = new_sign_key();
 
 #if DROPBEAR_RSA
-	loadhostkey(svr_opts.rsa_keyfile, 0);
+	loadhostkey(DROPBEAR_SIGNKEY_RSA, svr_opts.rsa_keyfile, 0);
 #endif
 
 #if DROPBEAR_DSS
-	loadhostkey(svr_opts.dss_keyfile, 0);
+	loadhostkey(DROPBEAR_SIGNKEY_DSS, svr_opts.dss_keyfile, 0);
 #endif
 
 #if DROPBEAR_ECDSA
-	loadhostkey(svr_opts.ecdsa_keyfile, 0);
+	loadhostkey(DROPBEAR_SIGNKEY_ECDSA_NISTP521, svr_opts.ecdsa_keyfile, 0);
 #endif
 #if DROPBEAR_ED25519
-	loadhostkey(svr_opts.ed25519_keyfile, 0);
+	loadhostkey(DROPBEAR_SIGNKEY_ED25519, svr_opts.ed25519_keyfile, 0);
 #endif
 
 #if DROPBEAR_RSA
