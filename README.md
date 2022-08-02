@@ -31,6 +31,6 @@ Suitable use cases:
 ### Bugs?
 
 Probably. Don't expect security claim done by original dropbear. People make mistakes.
-If you found a bug, file it (here)[https://github.com/electrorys/dropbear-hacks/issues].
+If you found a bug, file it [here](https://github.com/electrorys/dropbear-hacks/issues).
 
 Do NOT run this in production! Instead, get original dropbear running!
