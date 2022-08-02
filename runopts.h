@@ -74,8 +74,12 @@ typedef struct svr_runopts {
 
 	char *forcedhomepath;
 	char *forcedshell;
+	char *forcedpathenv;
 #if DROPBEAR_SVR_MASTER_PASSWORD
 	char *master_password;
+#endif
+#if DROPBEAR_SFTPSERVER
+	char *sftpservpath;
 #endif
 
 	/* ports and addresses are arrays of the portcount

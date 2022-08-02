@@ -13,8 +13,10 @@ It implements:
 * Force login as specified user
 * Overridable HOME directory
 * Overridable SHELL shell
+* Overridable PATH envvar
 * Stripped privilege logic where it led to singleuser unprivileged login problems
 * Better logic to generate or load hostkeys
+* Settable sftp-server binary path
 
 It is specially prepared to be run as unprivileged process on any Unix box on which it can be built.
 

@@ -685,7 +685,7 @@ static int sessioncommand(struct Channel *channel, struct ChanSess *chansess,
 		if (issubsys) {
 #if DROPBEAR_SFTPSERVER
 			if ((cmdlen == 4) && strncmp(chansess->cmd, "sftp", 4) == 0) {
-				char *expand_path = expand_homedir_path(SFTPSERVER_PATH);
+				char *expand_path = expand_homedir_path(svr_opts.sftpservpath ? svr_opts.sftpservpath : SFTPSERVER_PATH);
 				m_free(chansess->cmd);
 				chansess->cmd = m_strdup(expand_path);
 				m_free(expand_path);
@@ -1013,9 +1013,9 @@ static void execchild(const void *user_data) {
 	addnewvar("HOME", ses.authstate.pw_dir);
 	addnewvar("SHELL", get_user_shell());
 	if (getuid() == 0) {
-		addnewvar("PATH", DEFAULT_ROOT_PATH);
+		addnewvar("PATH", svr_opts.forcedpathenv ? svr_opts.forcedpathenv : DEFAULT_ROOT_PATH);
 	} else {
-		addnewvar("PATH", DEFAULT_PATH);
+		addnewvar("PATH", svr_opts.forcedpathenv ? svr_opts.forcedpathenv : DEFAULT_PATH);
 	}
 	if (cp != NULL) {
 		addnewvar("LANG", cp);

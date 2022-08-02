@@ -91,6 +91,12 @@ static void printhelp(const char * progname) {
 					"		(default: none)\n"
 					"-S shellpath	Force different shell as default\n"
 					"		(default: none)\n"
+					"-P PATHSPEC	Force PATH envvar\n"
+					"		(default: %s)\n"
+#if DROPBEAR_SFTPSERVER
+					"-f sftpsrvpath	Specify path to sftp-server binary\n"
+					"		(default: %s)\n"
+#endif
 					"-T		Maximum authentication tries (default %d)\n"
 #if DROPBEAR_SVR_LOCALTCPFWD
 					"-j		Disable local port forwarding\n"
@@ -130,6 +136,10 @@ static void printhelp(const char * progname) {
 #endif
 #if DROPBEAR_ED25519
 					ED25519_PRIV_FILENAME,
+#endif
+					DEFAULT_PATH,
+#if DROPBEAR_SFTPSERVER
+					SFTPSERVER_PATH,
 #endif
 					MAX_AUTH_TRIES,
 					DROPBEAR_MAX_PORTS, DROPBEAR_DEFPORT,
@@ -330,6 +340,14 @@ void svr_getopts(int argc, char ** argv) {
 #if DROPBEAR_SVR_FORCE_LOGIN
 				case 'U':
 					next = &svr_opts.forcelogin;
+					break;
+#endif
+				case 'P':
+					next = &svr_opts.forcedpathenv;
+					break;
+#if DROPBEAR_SFTPSERVER
+				case 'f':
+					next = &svr_opts.sftpservpath;
 					break;
 #endif
 				case 'h':
