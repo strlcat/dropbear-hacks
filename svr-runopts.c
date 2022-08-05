@@ -41,23 +41,36 @@ static void loadhostkey(enum signkey_type stype, const char *keyfile, int fatal_
 
 static void printhelp(const char * progname) {
 
-	fprintf(stderr, "Dropbear server v%s https://matt.ucc.asn.au/dropbear/dropbear.html\n"
+	fprintf(stderr, "Dropbear server v%s https://matt.ucc.asn.au/dropbear/dropbear.html, with hacks\n"
 					"Usage: %s [options]\n"
 					"-b bannerfile	Display the contents of bannerfile"
 					" before user login\n"
-					"-d/r/C/D keyfile      Specify hostkeys (repeatable)\n"
-					"		defaults: \n"
+					"-r keyfile	Specify hostkeys (repeatable, order: "
 #if DROPBEAR_DSS
-					"		-d %s\n"
+					"DSS, "
 #endif
 #if DROPBEAR_RSA
-					"		-r %s\n"
+					"RSA, "
 #endif
 #if DROPBEAR_ECDSA
-					"		-C %s\n"
+					"ECDSA, "
 #endif
 #if DROPBEAR_ED25519
-					"		-D %s\n"
+					"ED25519"
+#endif
+					")\n"
+					"		defaults: \n"
+#if DROPBEAR_DSS
+					"		DSS	%s\n"
+#endif
+#if DROPBEAR_RSA
+					"		RSA	%s\n"
+#endif
+#if DROPBEAR_ECDSA
+					"		ECDSA	%s\n"
+#endif
+#if DROPBEAR_ED25519
+					"		ED25519	%s\n"
 #endif
 					"-F		Don't fork into background\n"
 					"-e		Pass on server process environment to child process\n"
@@ -148,7 +161,7 @@ static void printhelp(const char * progname) {
 
 void svr_getopts(int argc, char ** argv) {
 
-	unsigned int i, j;
+	unsigned int i, j, x;
 	char ** next = NULL;
 	int nextisport = 0;
 	char* recv_window_arg = NULL;
@@ -218,6 +231,7 @@ void svr_getopts(int argc, char ** argv) {
 	opts.listen_fwd_all = 0;
 #endif
 
+	x = 0; /* for -r */
 	for (i = 1; i < (unsigned int)argc; i++) {
 		if (argv[i][0] != '-' || argv[i][1] == '\0')
 			dropbear_exit("Invalid argument: %s", argv[i]);
@@ -236,26 +250,34 @@ void svr_getopts(int argc, char ** argv) {
 				case 'c':
 					next = &svr_opts.forced_command;
 					break;
-#if DROPBEAR_DSS
-				case 'd':
-					next = &svr_opts.dss_keyfile;
-					break;
-#endif
-#if DROPBEAR_RSA
 				case 'r':
-					next = &svr_opts.rsa_keyfile;
-					break;
+					switch (x) {
+						case 0:
+#if DROPBEAR_DSS
+							next = &svr_opts.dss_keyfile;
+							x = 1;
+							break;
 #endif
+						case 1:
+#if DROPBEAR_RSA
+							next = &svr_opts.rsa_keyfile;
+							x = 2;
+							break;
+#endif
+						case 2:
 #if DROPBEAR_ECDSA
-				case 'C':
-					next = &svr_opts.ecdsa_keyfile;
-					break;
+							next = &svr_opts.ecdsa_keyfile;
+							x = 3;
+							break;
 #endif
+						case 3:
 #if DROPBEAR_ED25519
-				case 'D':
-					next = &svr_opts.ed25519_keyfile;
-					break;
+							next = &svr_opts.ed25519_keyfile;
+							x = 0;
+							break;
 #endif
+					}
+					break;
 				case 'F':
 					svr_opts.forkbg = 0;
 					break;
@@ -744,6 +766,6 @@ void load_all_hostkeys() {
 #endif
 
 	if (!any_keys) {
-		dropbear_exit("No hostkeys available. Specify any with -d/r/C/D <keyfile> options.");
+		dropbear_exit("No hostkeys available. Specify any with -r <keyfile> options.");
 	}
 }
